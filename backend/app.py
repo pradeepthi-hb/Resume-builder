@@ -1,24 +1,21 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import Config
 from extensions import db, jwt
 from routes.auth import auth_bp
 from routes.ai import ai_bp
+from routes.integration import integration_bp
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.resume import Resume
-from playwright.sync_api import sync_playwright
-import tempfile
 from flask import send_file
 from io import BytesIO
 from routes.occupation_routes import occupation_bp
 from analytics import analyze_resume, extract_text
 from job_match import semantic_match, get_model
-import copy
-import os, re
 from transformers import logging
-logging.set_verbosity_error()  # suppress warnings/info logs
+from services.resume_rendering import render_html, render_pdf_bytes
 
-from templates import classic, modern, twocolumn, creative, academic, corporate, ats, bold, minimal, sidebar, timeline, striped, architect, pastel, warm, technical, typographic
+logging.set_verbosity_error()  # suppress warnings/info logs
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -46,59 +43,11 @@ def expired_token(jwt_header, jwt_payload):
 app.register_blueprint(auth_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(occupation_bp)
+app.register_blueprint(integration_bp)
 
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Resume Builder API"})
-
-def preprocess_descriptions(data):
-    data = copy.deepcopy(data)  
-    experience = data.get("experience", [])
-    for exp in experience:
-        desc = exp.get("description", "")
-        if isinstance(desc, str):
-            exp["description"] = desc.replace("\n", "<br>")
-    return data
-
-def render_html(template_name, data):
-    data = preprocess_descriptions(data)
-    match template_name:
-        case "modern":
-            return modern.render(data)
-        case "classic":
-            return classic.render(data)
-        case "twocolumn":
-            return twocolumn.render(data)
-        case "creative":
-            return creative.render(data)
-        case "corporate":
-            return corporate.render(data)
-        case "academic":
-            return academic.render(data)
-        case "ats":
-            return ats.render(data)
-        case "minimal":
-            return minimal.render(data)
-        case "sidebar":
-            return sidebar.render(data)
-        case "timeline":
-            return timeline.render(data)
-        case "striped":
-            return striped.render(data)
-        case "architect":
-            return architect.render(data)
-        case "pastel":
-            return pastel.render(data)
-        case "warm":
-            return warm.render(data)
-        case "technical":
-            return technical.render(data)
-        case "typographic":
-            return typographic.render(data)
-        case "bold":
-            return bold.render(data)
-        case _:
-            return classic.render(data)
 
 @app.route("/api/resume", methods=["POST"])
 @jwt_required()
@@ -235,36 +184,8 @@ def download_resume(resume_id):
     data = {**resume.resume_data, "template": resume.template}
     html = render_html(resume.template, data)
 
-    from playwright.sync_api import sync_playwright
-    import tempfile
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-
-        page.set_content(html, wait_until="networkidle")
-
-        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        pdf_path = temp_pdf.name
-        temp_pdf.close()
-
-        # Generate PDF
-        page.pdf(
-            path=pdf_path,
-            format="A4",
-            print_background=True,
-            margin={
-                "top": "10mm",
-                "bottom": "10mm",
-                "left": "10mm",
-                "right": "10mm"
-            }
-        )
-
-        browser.close()
-
     return send_file(
-        pdf_path,
+        BytesIO(render_pdf_bytes(html)),
         as_attachment=True,
         download_name="resume.pdf",
         mimetype="application/pdf"

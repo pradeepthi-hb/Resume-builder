@@ -1,11 +1,14 @@
 import React, { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../auth/AuthContext";
 
 function Header() {
   const { token, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const isHireyoMode = location.pathname.startsWith("/integrations/hireyo");
+  const returnUrl = new URLSearchParams(location.search).get("return_url");
 
   const handleLogout = () => {
     logout();
@@ -110,7 +113,13 @@ function Header() {
 
       <nav className={`nav ${menuOpen ? "open" : ""}`}
      >
-        {token ? (
+        {isHireyoMode ? (
+          <>
+            {returnUrl ? (
+              <a href={returnUrl} style={styles.link}>Return to Hireyo</a>
+            ) : null}
+          </>
+        ) : token ? (
           <>
             <Link to="/" style={styles.link}>Dashboard</Link>
             <Link to="/resume/new" style={styles.link}>New Resume</Link>

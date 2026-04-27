@@ -13,4 +13,7 @@ class Config:
 
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/resume_builder?charset=utf8mb4"
+    HIREYO_SHARED_SECRET = os.getenv("HIREYO_SHARED_SECRET", "")
+    HIREYO_BUILDER_URL = os.getenv("HIREYO_BUILDER_URL", "")
+    HIREYO_STORAGE_DIR = os.getenv("HIREYO_STORAGE_DIR", os.path.join(BASE_DIR, "storage", "hireyo_sessions"))
 

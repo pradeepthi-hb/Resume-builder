@@ -43,6 +43,11 @@ export default function App() {
             }
           />
 
+          <Route
+            path="/integrations/hireyo"
+            element={<ResumeForm key="hireyo" />}
+          />
+
           {/* Protected route */}
           <Route
             path="/"

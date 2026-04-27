@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import "../components/ResumeForm.css";
 import "../components/analytics.css";
 import api from "../api/axios";
-import { useParams } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
 
@@ -127,8 +126,76 @@ function ResumeForm() {
   };
 
   const navigate = useNavigate();
+  const location = useLocation();
   const isLoaded = useRef(false);
   const [previewHTML, setPreviewHTML] = useState("");
+  const [integrationSession, setIntegrationSession] = useState(null);
+  const [integrationReady, setIntegrationReady] = useState(false);
+
+  const searchParams = new URLSearchParams(location.search);
+  const isIntegrationMode = location.pathname.startsWith("/integrations/hireyo");
+  const integrationToken = searchParams.get("token") || "";
+  const integrationCandidateName = searchParams.get("candidate_name") || integrationSession?.candidate_name || "";
+  const integrationReturnUrl = integrationSession?.return_url || searchParams.get("return_url") || "";
+
+  const saveIntegrationDraft = useCallback((payload) => {
+    return api.put("/integrations/hireyo/draft", {
+      token: integrationToken,
+      ...payload,
+    });
+  }, [integrationToken]);
+
+  useEffect(() => {
+    if (!isIntegrationMode) {
+      setIntegrationReady(true);
+      setIntegrationSession(null);
+      return;
+    }
+
+    if (!integrationToken) {
+      setIntegrationReady(false);
+      toast.error("Missing Hireyo launch token.");
+      return;
+    }
+
+    setIntegrationReady(false);
+
+    api.get(`/integrations/hireyo/session${location.search}`)
+      .then((res) => {
+        const data = res.data;
+        setIntegrationSession(data);
+        isLoaded.current = false;
+        setFormData(data.draft ?? EMPTY_FORM);
+        setPreviewHTML(data.resume_html ?? "");
+        setAnalytics(data.analytics ?? {
+          resume_score: 0,
+          completeness_score: 0,
+          action_verbs_used: 0,
+          keywords_count: 0,
+          quantified_achievements: 0,
+          word_count: 0,
+          estimated_pages: 0,
+          skills_count: 0,
+          experience_entries: 0,
+          bullet_points: 0,
+          has_email: false,
+          has_phone: false,
+          has_linkedin: false,
+          keywords_found: [],
+          missing_sections: [],
+          suggestions: [],
+          ats_score: 0,
+          keyword_alignment: 0
+        });
+        isLoaded.current = true;
+        setIntegrationReady(true);
+      })
+      .catch((err) => {
+        console.error(err);
+        setIntegrationReady(false);
+        toast.error(err?.response?.data?.error || "Unable to initialize Hireyo integration.");
+      });
+  }, [integrationToken, isIntegrationMode, location.search]);
 
   // ── Personal ─────────────────────────────────────────────────────────────
   const handlePersonalChange = (e) => {
@@ -418,11 +485,23 @@ function ResumeForm() {
       isLoaded.current = true;
       return;
     }
+
+    if (isIntegrationMode && (!integrationReady || !integrationToken)) {
+      return;
+    }
     
     saveTimeout.current = setTimeout(() => {
       const payload = cleanFormData(formData);
 
-      if (id) {
+      if (isIntegrationMode) {
+        saveIntegrationDraft(payload)
+          .then(res => {
+            setPreviewHTML(res.data.resume_html);
+            setAnalytics(res.data.analytics);
+            setMatchOutdated(true);
+          })
+          .catch(err => console.log(err));
+      } else if (id) {
         api.put(`/resume/${id}`, payload)
           .then(res => {
             setPreviewHTML(res.data.resume_html);
@@ -443,10 +522,14 @@ function ResumeForm() {
     }, 1000);
 
     return () => clearTimeout(saveTimeout.current);
-  }, [formData, id, navigate]);
+  }, [formData, id, integrationReady, integrationToken, isIntegrationMode, navigate, saveIntegrationDraft]);
 
   // ── Load resume ───────────────────────────────────────────────────────────
   useEffect(() => {
+    if (isIntegrationMode) {
+      return;
+    }
+
     if (id) {
       api.get(`/resume/${id}`)
         .then(res => {
@@ -470,7 +553,7 @@ function ResumeForm() {
     } else {
       isLoaded.current = true;
     }
-  }, [id]);
+  }, [id, isIntegrationMode]);
 
   // ── Check empty ───────────────────────────────────────────────────────────
   const isFormCompletelyEmpty = () => {
@@ -631,6 +714,47 @@ function ResumeForm() {
 
     const payload = cleanFormData(formData);
 
+    if (isIntegrationMode) {
+      const toastId = toast.loading("Sending resume to Hireyo...");
+
+      saveIntegrationDraft(payload)
+        .then((saveRes) => {
+          setPreviewHTML(saveRes.data.resume_html);
+          setAnalytics(saveRes.data.analytics);
+
+          return api.post("/integrations/hireyo/submit", {
+            token: integrationToken,
+            resume_name: `${formData.personal.firstName || integrationCandidateName || "Candidate"} Resume`,
+          });
+        })
+        .then((submitRes) => {
+          toast.update(toastId, {
+            render: "Resume sent to Hireyo successfully!",
+            type: "success",
+            isLoading: false,
+            autoClose: 2500
+          });
+
+          const returnUrl = submitRes?.data?.return_url || integrationReturnUrl;
+          if (returnUrl) {
+            setTimeout(() => {
+              window.location.href = returnUrl;
+            }, 1000);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          toast.update(toastId, {
+            render: err?.response?.data?.error || "Failed to send resume to Hireyo.",
+            type: "error",
+            isLoading: false,
+            autoClose: 4000
+          });
+        });
+
+      return;
+    }
+
     if (id) {
       api.put(`/resume/${id}`, payload)
         .then(res => {
@@ -657,7 +781,7 @@ function ResumeForm() {
       return;
     }
 
-    if (!id) {
+    if (!isIntegrationMode && !id) {
       toast.error("Please save your resume before downloading.");
       return;
     }
@@ -665,7 +789,10 @@ function ResumeForm() {
     const toastId = toast.loading("Preparing your resume PDF...");
 
     try {
-      const response = await api.get(`/resume/${id}/download`, {
+      const response = await api.get(
+        isIntegrationMode ? "/integrations/hireyo/download" : `/resume/${id}/download`,
+        {
+        params: isIntegrationMode ? { token: integrationToken } : undefined,
         responseType: "blob",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
@@ -777,7 +904,14 @@ function ResumeForm() {
     <div className="resume-builder">
       <div className="form-section">
         <div className="form-header">
-          <h2>Resume Form</h2>
+          <div>
+            <h2>{isIntegrationMode ? "Build Resume for Hireyo" : "Resume Form"}</h2>
+            {isIntegrationMode && integrationCandidateName ? (
+              <p style={{ marginTop: "6px", color: "#64748B" }}>
+                Creating a resume for {integrationCandidateName}
+              </p>
+            ) : null}
+          </div>
 
           <div className="header-actions">
             <button
@@ -801,15 +935,17 @@ function ResumeForm() {
               className="submit-btn"
               onClick={handleSubmit}
             >
-              Submit
+              {isIntegrationMode ? "Send to Hireyo" : "Submit"}
             </button>
 
-            <button
-              className="delete-btn"
-              onClick={() => handleDelete(id)}
-            >
-              Delete
-            </button>
+            {!isIntegrationMode && id ? (
+              <button
+                className="delete-btn"
+                onClick={() => handleDelete(id)}
+              >
+                Delete
+              </button>
+            ) : null}
           </div>
         </div>
 

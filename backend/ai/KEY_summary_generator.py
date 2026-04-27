@@ -60,7 +60,8 @@ Rules:
 - No headings
 - No bullet points
 - Professional tone
-- Minimum length 350 characters
+- Minimum length 250 characters
+- Maximum length 350 characters
 """
 
     try:
