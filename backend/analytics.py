@@ -1,19 +1,23 @@
 import re
 import mysql.connector
 
-mydb= mysql.connector.connect(
-    host= "localhost",
-    user= "root",
-    password= "",
-    database= "resume_builder"
-)
+from db_settings import get_mysql_config, load_environment
 
-mycursor = mydb.cursor()
-
-mycursor.execute("SELECT technology FROM technology_skills")
+load_environment()
 
 
-TECH_KEYWORDS = [row[0] for row in mycursor.fetchall()]
+def _load_tech_keywords():
+    conn = mysql.connector.connect(**get_mysql_config(include_database=True))
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT technology FROM technology_skills")
+        return [row[0] for row in cursor.fetchall()]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+TECH_KEYWORDS = _load_tech_keywords()
 
 ACTION_VERBS = {
     "developed", "designed", "implemented", "built", "optimized", "managed",

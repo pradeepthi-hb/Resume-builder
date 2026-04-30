@@ -1,0 +1,59 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap");
+
+:root {
+  --bg-main: #f5f7fb;
+  --bg-soft: #eef2ff;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-soft: #dbe3f2;
+  --brand: #2563eb;
+  --brand-strong: #1d4ed8;
+  --success: #0f9f62;
+  --danger: #dc2626;
+  --shadow-soft: 0 8px 28px rgba(15, 23, 42, 0.08);
+  --shadow-strong: 0 18px 45px rgba(15, 23, 42, 0.14);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--text-main);
+  font-family: "Plus Jakarta Sans", "DM Sans", "Trebuchet MS", sans-serif;
+  background:
+    radial-gradient(900px circle at 8% -4%, rgba(37, 99, 235, 0.1), transparent 50%),
+    radial-gradient(700px circle at 92% -8%, rgba(16, 185, 129, 0.07), transparent 55%),
+    linear-gradient(180deg, #f9fbff 0%, var(--bg-main) 42%, #eff3fb 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--brand);
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  color: #fff;
+  background: #3b82f6;
+}

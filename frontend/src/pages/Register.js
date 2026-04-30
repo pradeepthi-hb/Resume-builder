@@ -2,6 +2,7 @@ import React, { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import { AuthContext } from "../auth/AuthContext";
+import "./Auth.css";
 
 function Register() {
   const { register } = useContext(AuthContext);
@@ -22,37 +23,36 @@ function Register() {
         email,
         password,
       });
- 
+
       register(res.data.access_token);
 
+      setSuccess("Registration successful!");
 
-      setSuccess("Registration successful! ");
-      
       setTimeout(() => {
         navigate("/");
       }, 1000);
-
     } catch (err) {
       setError("User already exists or registration failed");
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2>Register</h2>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h2 className="auth-title">Create Account</h2>
+        <p className="auth-subtitle">Start building polished resumes in minutes.</p>
 
-        {error && <p style={styles.error}>{error}</p>}
-        {success && <p style={styles.success}>{success}</p>}
+        {error && <p className="auth-message auth-message-error">{error}</p>}
+        {success && <p className="auth-message auth-message-success">{success}</p>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={styles.input}
+            className="auth-input"
           />
 
           <input
@@ -61,63 +61,20 @@ function Register() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={styles.input}
+            className="auth-input"
           />
 
-          <button type="submit" style={styles.button}>
+          <button type="submit" className="auth-btn auth-btn-register">
             Register
           </button>
         </form>
 
-        <p>
-          Already have an account?{" "}
-          <Link to="/login">Login</Link>
+        <p className="auth-switch">
+          Already have an account? <Link to="/login">Login</Link>
         </p>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f4f6f8",
-  },
-  card: {
-    background: "#fff",
-    padding: "30px",
-    borderRadius: "8px",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-    width: "350px",
-    textAlign: "center",
-  },
-  input: {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "15px",
-    borderRadius: "5px",
-    border: "1px solid #ccc",
-  },
-  button: {
-    width: "100%",
-    padding: "10px",
-    background: "#16a34a",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-  error: {
-    color: "red",
-    marginBottom: "10px",
-  },
-  success: {
-    color: "green",
-    marginBottom: "10px",
-  },
-};
 
 export default Register;

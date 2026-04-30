@@ -1,0 +1,113 @@
+.auth-page {
+  min-height: calc(100vh - 68px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 430px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #dbe3f2;
+  border-radius: 20px;
+  padding: 34px 30px;
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.16);
+}
+
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.auth-subtitle {
+  margin: 0 0 22px;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-input {
+  width: 100%;
+  border: 1px solid #d3def0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #f9fbff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  background: #ffffff;
+}
+
+.auth-btn {
+  margin-top: 4px;
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.auth-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.auth-btn:active {
+  transform: translateY(0);
+}
+
+.auth-btn-login {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
+}
+
+.auth-btn-register {
+  background: linear-gradient(135deg, #0f9f62, #0a7c4f);
+  box-shadow: 0 12px 24px rgba(15, 159, 98, 0.3);
+}
+
+.auth-message {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.auth-message-error {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.auth-message-success {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.auth-switch {
+  margin: 18px 0 0;
+  color: #475569;
+  font-size: 0.92rem;
+}
+
+.auth-switch a {
+  font-weight: 700;
+}

@@ -906,11 +906,7 @@ function ResumeForm() {
         <div className="form-header">
           <div>
             <h2>{isIntegrationMode ? "Build Resume for Hireyo" : "Resume Form"}</h2>
-            {isIntegrationMode && integrationCandidateName ? (
-              <p style={{ marginTop: "6px", color: "#64748B" }}>
-                Creating a resume for {integrationCandidateName}
-              </p>
-            ) : null}
+            
           </div>
 
           <div className="header-actions">

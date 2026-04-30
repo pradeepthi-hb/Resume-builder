@@ -2,6 +2,7 @@ import React, { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import { AuthContext } from "../auth/AuthContext";
+import "./Auth.css";
 
 function Login() {
   const { login } = useContext(AuthContext);
@@ -21,28 +22,29 @@ function Login() {
         password,
       });
 
-      login(res.data.access_token);   
-      navigate("/");                 
+      login(res.data.access_token);
+      navigate("/");
     } catch (err) {
       setError("Invalid email or password");
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2>Login</h2>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h2 className="auth-title">Welcome Back</h2>
+        <p className="auth-subtitle">Log in to continue building your resume.</p>
 
-        {error && <p style={styles.error}>{error}</p>}
+        {error && <p className="auth-message auth-message-error">{error}</p>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={styles.input}
+            className="auth-input"
           />
 
           <input
@@ -51,59 +53,20 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={styles.input}
+            className="auth-input"
           />
 
-          <button type="submit" style={styles.button}>
+          <button type="submit" className="auth-btn auth-btn-login">
             Login
           </button>
         </form>
 
-        <p>
-          Don’t have an account?{" "}
-          <Link to="/register">Register</Link>
+        <p className="auth-switch">
+          Don&apos;t have an account? <Link to="/register">Register</Link>
         </p>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f4f6f8",
-  },
-  card: {
-    background: "#fff",
-    padding: "30px",
-    borderRadius: "8px",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-    width: "350px",
-    textAlign: "center",
-  },
-  input: {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "15px",
-    borderRadius: "5px",
-    border: "1px solid #ccc",
-  },
-  button: {
-    width: "100%",
-    padding: "10px",
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-  error: {
-    color: "red",
-    marginBottom: "10px",
-  },
-};
 
 export default Login;

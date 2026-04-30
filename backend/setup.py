@@ -2,8 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
+BACKEND_DIR = Path(__file__).resolve().parent
 IMPORT_SCRIPT = BACKEND_DIR / "database" / "import_csv.py"
 
 
@@ -12,13 +11,12 @@ def main():
         print(f"Missing script: {IMPORT_SCRIPT}")
         return 1
 
-    print("Excel import has been replaced with CSV bulk import.")
-    print("Running import_csv.py...")
+    print("Running CSV setup via import_csv.py...")
     try:
         subprocess.run([sys.executable, str(IMPORT_SCRIPT)], check=True, cwd=str(BACKEND_DIR))
         return 0
     except subprocess.CalledProcessError as exc:
-        print(f"Import failed with exit code {exc.returncode}.")
+        print(f"Setup failed with exit code {exc.returncode}.")
         return exc.returncode
 
 

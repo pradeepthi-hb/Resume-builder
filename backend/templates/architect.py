@@ -48,7 +48,7 @@ def render(data):
           <div class='ar-item-grid'>
             <div class='ar-item-date'>{e.get('gradYear','')}</div>
             <div class='ar-item-body'>
-              <div class='ar-item-title'>{(e.get('degree','') + (' &ndash; ' + e.get('field','') if e.get('field') else '')).upper()}</div>
+              <div class='ar-item-title'>{(e.get('degree','') + (' - ' + e.get('field','') if e.get('field') else '')).upper()}</div>
               <div class='ar-item-org'>{e.get('school','')}{', '+e.get('location','') if e.get('location') else ''}{gpa}</div>
             </div>
           </div>

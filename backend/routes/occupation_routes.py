@@ -1,17 +1,13 @@
 from flask import Blueprint, request, jsonify
 import mysql.connector
 
-occupation_bp = Blueprint("occupation", __name__)
+from db_settings import get_mysql_config, load_environment
 
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "",
-    "database": "resume_builder"
-}
+occupation_bp = Blueprint("occupation", __name__)
+load_environment()
 
 def get_connection():
-    return mysql.connector.connect(**DB_CONFIG)
+    return mysql.connector.connect(**get_mysql_config(include_database=True))
 
 
 @occupation_bp.route("/api/occupations/search", methods=["GET"])
