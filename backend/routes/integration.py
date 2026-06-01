@@ -1,18 +1,15 @@
 import json
-import os
 import uuid
-import time
 from io import BytesIO
 from urllib import error, request as urllib_request
 
 from flask import Blueprint, current_app, jsonify, request, send_file
 
 from analytics import analyze_resume
+from services.integration_session_store import IntegrationSessionStore
 from services.resume_rendering import render_html, render_pdf_bytes
 
 integration_bp = Blueprint("integration", __name__, url_prefix="/api/integrations")
-
-HIREYO_SESSIONS = {}
 
 DEFAULT_FORM = {
     "personal": {
@@ -51,20 +48,50 @@ def _split_name(candidate_name):
     return parts[0], " ".join(parts[1:])
 
 
-# def _storage_dir():
-#     configured_dir = current_app.config.get("HIREYO_STORAGE_DIR")
-#     if configured_dir:
-#         directory = configured_dir
-#     else:
-#         directory = os.path.join(current_app.root_path, "storage", "hireyo_sessions")
+def _pick_first_nonempty(*values):
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
 
-#     os.makedirs(directory, exist_ok=True)
-#     return directory
+
+def _normalize_role(value):
+    role = str(value or "").strip().lower()
+    if role in {"candidate", "company"}:
+        return role
+    return ""
 
 
-def _session_path(token):
-    safe_token = "".join(ch for ch in str(token) if ch.isalnum() or ch in ("-", "_"))
-    return os.path.join(_storage_dir(), f"{safe_token}.json")
+def _parse_bool_like(value):
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return value
+
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    return None
+
+
+def _get_session_store():
+    store = current_app.extensions.get("hireyo_session_store")
+    if store:
+        return store
+
+    store = IntegrationSessionStore(
+        redis_url=current_app.config.get("REDIS_URL", ""),
+        ttl_seconds=current_app.config.get("HIREYO_SESSION_TTL_SECONDS", 1800),
+        key_prefix=current_app.config.get("HIREYO_SESSION_KEY_PREFIX", "hireyo:session:"),
+    )
+    current_app.extensions["hireyo_session_store"] = store
+    return store
 
 
 def _draft_to_resume_data(draft):
@@ -78,34 +105,13 @@ def _preview_payload(draft):
     return analytics, html
 
 
-# def _load_session(token):
-#     path = _session_path(token)
-#     if not os.path.exists(path):
-#         return None
-
-#     with open(path, "r", encoding="utf-8") as file_handle:
-#         return json.load(file_handle)
 def _load_session(token):
-    session = HIREYO_SESSIONS.get(token)
-
-    if not session:
-        return None
-
-    if session["expires_at"] < time.time():
-        del HIREYO_SESSIONS[token]
-        return None
-
-    return session["data"]
+    return _get_session_store().get(token)
 
 
-# def _save_session(token, payload):
-#     with open(_session_path(token), "w", encoding="utf-8") as file_handle:
-#         json.dump(payload, file_handle, ensure_ascii=True, indent=2)
 def _save_session(token, data):
-    HIREYO_SESSIONS[token] = {
-        "data": data,
-        "expires_at": time.time() + 1800  # 30 minutes
-    }
+    print("🔥 SESSION SET CALLED", token, data)
+    _get_session_store().set(token, data)
 
 
 def _build_default_draft(candidate_name, candidate_email):
@@ -178,6 +184,22 @@ def hireyo_session():
     return_url = (request.args.get("return_url") or "").strip()
     candidate_name = (request.args.get("candidate_name") or "").strip()
     candidate_email = (request.args.get("candidate_email") or "").strip()
+    launch_role = _normalize_role(
+        _pick_first_nonempty(
+            request.args.get("role"),
+            request.args.get("candidate_role"),
+            request.args.get("user_role"),
+            request.args.get("launch_role"),
+        )
+    )
+    launch_is_verified = _parse_bool_like(
+        _pick_first_nonempty(
+            request.args.get("is_verified"),
+            request.args.get("verified"),
+            request.args.get("candidate_verified"),
+            request.args.get("user_verified"),
+        )
+    )
 
     if not token:
         return jsonify({"error": "Launch token is required."}), 400
@@ -194,8 +216,17 @@ def hireyo_session():
             "return_url": return_url,
             "candidate_name": candidate_name,
             "candidate_email": candidate_email,
+            "launch_role": launch_role or "candidate",
+            "launch_is_verified": True if launch_is_verified is None else bool(launch_is_verified),
             "draft": draft,
         }
+        _save_session(token, session)
+    else:
+        # Refresh role/verification hints when provided by launcher.
+        if launch_role:
+            session["launch_role"] = launch_role
+        if launch_is_verified is not None:
+            session["launch_is_verified"] = bool(launch_is_verified)
         _save_session(token, session)
 
     analytics, html = _preview_payload(session["draft"])
@@ -205,6 +236,8 @@ def hireyo_session():
             "token": token,
             "candidate_name": session.get("candidate_name"),
             "candidate_email": session.get("candidate_email"),
+            "launch_role": session.get("launch_role", "candidate"),
+            "launch_is_verified": bool(session.get("launch_is_verified", True)),
             "return_url": session.get("return_url"),
             "callback_url": session.get("callback_url"),
             "draft": session["draft"],

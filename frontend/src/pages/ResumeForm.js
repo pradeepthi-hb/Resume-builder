@@ -4,6 +4,7 @@ import "../components/analytics.css";
 import api from "../api/axios";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import ResumeImportUploader from "../components/ResumeImportUploader";
 
 
 const steps = [
@@ -131,6 +132,9 @@ function ResumeForm() {
   const [previewHTML, setPreviewHTML] = useState("");
   const [integrationSession, setIntegrationSession] = useState(null);
   const [integrationReady, setIntegrationReady] = useState(false);
+  const [creationMode, setCreationMode] = useState(() => (
+    routeId || location.pathname.startsWith("/integrations/hireyo") ? "scratch" : null
+  ));
 
   const searchParams = new URLSearchParams(location.search);
   const isIntegrationMode = location.pathname.startsWith("/integrations/hireyo");
@@ -144,6 +148,12 @@ function ResumeForm() {
       ...payload,
     });
   }, [integrationToken]);
+
+  useEffect(() => {
+    if (routeId || isIntegrationMode) {
+      setCreationMode("scratch");
+    }
+  }, [routeId, isIntegrationMode]);
 
   useEffect(() => {
     if (!isIntegrationMode) {
@@ -220,11 +230,10 @@ function ResumeForm() {
 
   const fetchSuggestions = async (query) => {
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/occupations/search?q=${encodeURIComponent(query)}`
-      );
-      const data = await res.json();
-      setSuggestions(data);
+      const res = await api.get("/occupations/search", {
+        params: { q: query },
+      });
+      setSuggestions(res.data);
       setShowDropdown(true);
     } catch (err) {
       console.error("Error fetching professions:", err);
@@ -288,9 +297,8 @@ function ResumeForm() {
     }
     const fetchSkills = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/occupations/skills/${skillOnetCode}`);
-        const data = await res.json();
-        setSuggestedSkills(data.map(item => item.technology));
+        const res = await api.get(`/occupations/skills/${skillOnetCode}`);
+        setSuggestedSkills(res.data.map(item => item.technology));
       } catch (err) {
         console.error("Error fetching skills:", err);
       }
@@ -364,11 +372,10 @@ function ResumeForm() {
     clearTimeout(expDebounceRef.current);
     expDebounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `http://localhost:5000/api/occupations/search?q=${encodeURIComponent(query)}`
-        );
-        const data = await res.json();
-        setExpSuggestions(prev => ({ ...prev, [index]: data }));
+        const res = await api.get("/occupations/search", {
+          params: { q: query },
+        });
+        setExpSuggestions(prev => ({ ...prev, [index]: res.data }));
         setActiveExpDropdown(index);
       } catch (err) {
         console.error("Error fetching occupations:", err);
@@ -481,6 +488,10 @@ function ResumeForm() {
 
   // ── Auto-save ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!isIntegrationMode && !id && creationMode !== "scratch") {
+      return;
+    }
+
     if (!isLoaded.current) {
       isLoaded.current = true;
       return;
@@ -492,6 +503,24 @@ function ResumeForm() {
     
     saveTimeout.current = setTimeout(() => {
       const payload = cleanFormData(formData);
+      const canCreateNewResume = (
+        Object.entries(payload.personal).some(([key, value]) => {
+          if (key === "onet_code") return false;
+          if (Array.isArray(value)) return value.length > 0;
+          return Boolean(value?.toString().trim());
+        }) ||
+        Boolean(payload.summary) ||
+        payload.skills.length > 0 ||
+        payload.education.length > 0 ||
+        payload.experience.length > 0 ||
+        payload.projects.length > 0 ||
+        payload.certifications.length > 0 ||
+        payload.languages.length > 0
+      );
+
+      if (!isIntegrationMode && !id && !canCreateNewResume) {
+        return;
+      }
 
       if (isIntegrationMode) {
         saveIntegrationDraft(payload)
@@ -522,7 +551,7 @@ function ResumeForm() {
     }, 1000);
 
     return () => clearTimeout(saveTimeout.current);
-  }, [formData, id, integrationReady, integrationToken, isIntegrationMode, navigate, saveIntegrationDraft]);
+  }, [creationMode, formData, id, integrationReady, integrationToken, isIntegrationMode, navigate, saveIntegrationDraft]);
 
   // ── Load resume ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -556,26 +585,29 @@ function ResumeForm() {
   }, [id, isIntegrationMode]);
 
   // ── Check empty ───────────────────────────────────────────────────────────
-  const isFormCompletelyEmpty = () => {
-    const { personal, summary, skills, education, experience, projects, certifications, languages } = formData;
+  const hasAtLeastOneFilledField = (data = formData) => {
+    const cleaned = cleanFormData(data);
+    const { personal, summary, skills, education, experience, projects, certifications, languages } = cleaned;
 
-    const personalEmpty = Object.entries(personal).every(([key, value]) => {
-      if (key === "onet_code") return true; // internal field, ignore
-      if (Array.isArray(value)) return value.length === 0;
-      return !value;
+    const personalHasValue = Object.entries(personal).some(([key, value]) => {
+      if (key === "onet_code") return false; // internal field, ignore
+      if (Array.isArray(value)) return value.length > 0;
+      return Boolean(value?.toString().trim());
     });
 
     return (
-      personalEmpty &&
-      !summary &&
-      skills.length === 0 &&
-      education.length === 0 &&
-      experience.length === 0 &&
-      projects.length === 0 &&
-      certifications.length === 0 &&
-      languages.length === 0
+      personalHasValue ||
+      Boolean(summary) ||
+      skills.length > 0 ||
+      education.length > 0 ||
+      experience.length > 0 ||
+      projects.length > 0 ||
+      certifications.length > 0 ||
+      languages.length > 0
     );
   };
+
+  const isFormCompletelyEmpty = () => !hasAtLeastOneFilledField(formData);
 
   // ── Clean formData ────────────────────────────────────────────────────────
   const cleanFormData = (data) => {
@@ -623,18 +655,12 @@ function ResumeForm() {
     const toastId = toast.loading("Generating summary...");
 
     try {
-      const response = await fetch("http://localhost:5000/api/ai/generate-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resumeData: cleanFormData(formData),
-          variation: variation
-        })
+      const response = await api.post("/ai/generate-summary", {
+        resumeData: cleanFormData(formData),
+        variation: variation
       });
-      
 
-      const data = await response.json();
-      setFormData(prev => ({ ...prev, summary: data.summary }));
+      setFormData(prev => ({ ...prev, summary: response.data.summary }));
       setVariation(prev => (prev + 1) % 10);
       toast.update(toastId, {
           render: "Summary generated!",
@@ -855,10 +881,11 @@ function ResumeForm() {
 
     setSkillOnetCode(null); 
     try {
-      const res = await fetch(`http://localhost:5000/api/occupations/search?q=${encodeURIComponent(value)}`);
-      const data = await res.json();
-      setSkillSuggestions(data);
-      setShowSkillDropdown(data.length > 0);
+      const res = await api.get("/occupations/search", {
+        params: { q: value },
+      });
+      setSkillSuggestions(res.data);
+      setShowSkillDropdown(res.data.length > 0);
     } catch (err) {
       console.error(err);
     }
@@ -878,19 +905,12 @@ function ResumeForm() {
         toast.info("Results already up to date.");
         return;
       }
-      const res = await fetch(`http://localhost:5000/api/job-match`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          resume: formData,
-          job_description: jobText
-        })
+      const res = await api.post("/job-match", {
+        resume: formData,
+        job_description: jobText
       });
 
-    const data = await res.json();
-    setJobMatch(data);
+    setJobMatch(res.data);
     setLastMatchInput(currentInput);
     }
     else{
@@ -898,6 +918,34 @@ function ResumeForm() {
       return
     }
   };
+
+  if (!isIntegrationMode && !id && creationMode !== "scratch") {
+    return (
+      <ResumeImportUploader
+        onStartScratch={() => {
+          setCreationMode("scratch");
+          setId(null);
+          setFormData(EMPTY_FORM);
+          setPreviewHTML("");
+          isLoaded.current = true;
+        }}
+        onImportSuccess={(payload) => {
+          const importedId = payload?.resume_id;
+          if (!importedId) {
+            toast.error("Import completed but resume ID is missing.");
+            return;
+          }
+          const confidence = payload?.parser_confidence;
+          if (typeof confidence === "number") {
+            toast.success(`Resume imported (${Math.round(confidence * 100)}% confidence)`);
+          } else {
+            toast.success("Resume imported successfully!");
+          }
+          navigate(`/resume/${importedId}`);
+        }}
+      />
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -1238,7 +1286,7 @@ function ResumeForm() {
             <textarea
               id={`experience-description-${index}`}
               placeholder="Describe your responsibilities, achievements, and impact..."
-              rows="4" maxLength={400}
+              rows="4" maxLength={450}
               style={{ width: "100%" }} name="description"
               value={exp.description} 
               onChange={(e) => updateExperience(index, "description", e.target.value)}
@@ -1248,7 +1296,7 @@ function ResumeForm() {
               color: (exp.description?.length || 0) > 300 ? "#e63946" : "#666",
               fontWeight: (exp.description?.length || 0) > 300 ? "bold" : "normal"
             }}>
-              {(exp.description?.length || 0)} / 400
+              {(exp.description?.length || 0)} / 450
             </div>
 
             <div className="enhance-btn"> 
@@ -1298,7 +1346,7 @@ function ResumeForm() {
             <input
               type="text"
               placeholder="Skill"
-              value={skill} name="skill" maxLength={80}
+              value={skill} name="skill" maxLength={200}
               onChange={(e) => updateSkill(index, e.target.value)}
             />
             <button type="button" className="delete-icon-btn" onClick={() => removeSkill(index)}>

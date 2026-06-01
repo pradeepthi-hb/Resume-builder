@@ -20,43 +20,56 @@ def render(data):
     #  Education 
     education_html = ""
     for edu in education:
-        gpa_str = f" &nbsp;|&nbsp; GPA: {edu.get('gpa')}" if edu.get("gpa", "").strip() else ""
+        school = edu.get("school", "").strip()
+        location = edu.get("location", "").strip()
+        degree = edu.get("degree", "").strip()
+        field = edu.get("field", "").strip()
+        gpa = edu.get("gpa", "").strip()
+        grad_month = edu.get("gradMonth", "").strip()
+        grad_year = edu.get("gradYear", "").strip()
+
+        if not any([school, location, degree, field, gpa, grad_month, grad_year]):
+            continue
+
+        gpa_str = f" &nbsp;|&nbsp; GPA: {gpa}" if gpa else ""
+        degree_line = ""
+        if degree and field:
+            degree_line = f"{degree} &ndash; {field}"
+        elif degree:
+            degree_line = degree
+        elif field:
+            degree_line = field
+
+        school_line = school if school else ""
+        if location:
+            school_line = f"{school_line}{', ' if school_line else ''}{location}"
+
+        date_line = f"{grad_month} {grad_year}".strip()
         education_html += f"""
         <div class="item">
-          <div class="item-header">
-            <strong>{edu.get("school", "")}</strong>
-            {", " + edu.get("location", "") if edu.get("location") else ""}
-          </div>
-          <div class="item-subheader">
-            {edu.get("degree", "")}{" &ndash; " + edu.get("field", "") if edu.get("field") else ""}
-            {gpa_str}
-          </div>
-          <div class="item-date">
-            {edu.get("gradMonth", "")} {edu.get("gradYear", "")}
-          </div>
+          {f"<div class='item-header'><strong>{school_line}</strong></div>" if school_line else ""}
+          {f"<div class='item-subheader'>{degree_line}{gpa_str}</div>" if degree_line or gpa_str else ""}
+          {f"<div class='item-date'>{date_line}</div>" if date_line else ""}
         </div>
         """
 
     #  Experience 
     experience_html = ""
     for exp in experience:
-        end_date = (
-            "Present"
-            if exp.get("current")
-            else f"{exp.get('endMonth', '')} {exp.get('endYear', '')}"
-        )
+        title = exp.get("title", "").strip()
+        employer = exp.get("employer", "").strip()
+        location = exp.get("location", "").strip()
+        start = f"{exp.get('startMonth', '').strip()} {exp.get('startYear', '').strip()}".strip()
+        end_date = "Present" if exp.get("current") else f"{exp.get('endMonth', '').strip()} {exp.get('endYear', '').strip()}".strip()
+        date_line = f"{start} &ndash; {end_date}".strip(" &ndash;")
+        if not title and not employer and not exp.get("description", "").strip():
+            continue
         experience_html += f"""
         <div class="item">
-          <div class="item-header">
-            <strong>{exp.get("title", "")}</strong>
-            {" &ndash; " + exp.get("employer", "") if exp.get("employer") else ""}
-          </div>
-          <div class="item-subheader">
-            {exp.get("location", "")}
-          </div>
-          <div class="item-date">
-            {exp.get("startMonth", "")} {exp.get("startYear", "")} &ndash; {end_date}
-          </div>
+          {f"<div class='item-header'><strong>{title}</strong>{' &ndash; ' + employer if employer else ''}</div>" if title else ""}
+          {f"<div class='item-header'><strong>{employer}</strong></div>" if (not title and employer) else ""}
+          {f"<div class='item-subheader'>{location}</div>" if location else ""}
+          {f"<div class='item-date'>{date_line}</div>" if date_line else ""}
           {"<div class='item-desc'>" + exp.get('description','') + "</div>" if exp.get('description','').strip() else ""}
           
         </div>
@@ -152,7 +165,34 @@ def render(data):
     if websites:
         links = [f'<a href="{w}" target="_blank">{w}</a>' for w in websites if w.strip()]
         if links:
-            websites_html = " | " + " | ".join(links)
+            websites_html = " | ".join(links)
+
+    contact_parts = []
+    city = personal.get("city", "").strip()
+    country = personal.get("country", "").strip()
+    pincode = personal.get("pincode", "").strip()
+    phone = personal.get("phone", "").strip()
+    email = personal.get("email", "").strip()
+    linkedin = personal.get("linkedin", "").strip()
+
+    location_line = ""
+    if city:
+        location_line = city
+        if country:
+            location_line += ", " + country
+        if pincode:
+            location_line += " " + pincode
+    elif country:
+        location_line = country + (f" {pincode}" if pincode else "")
+
+    if phone:
+        contact_parts.append(phone)
+    if email:
+        contact_parts.append(email)
+    if linkedin:
+        contact_parts.append(f"<a href='{linkedin}' target='_blank'>{linkedin}</a>")
+    if websites_html:
+        contact_parts.append(websites_html)
 
     # ── Conditional section builder ───────────────────────────────────────────
     def section(title, content):
@@ -383,10 +423,8 @@ def render(data):
         {"<h3>" + personal.get("profession", "") + "</h3>" if personal.get("profession") else ""}
 
         <div class="contact-info">
-          {personal.get("city", "")}{", " + personal.get("country", "") if personal.get("country") else ""}{" " + personal.get("pincode", "") if personal.get("pincode") else ""}<br>
-          {personal.get("phone", "")}{" | " + personal.get("email", "") if personal.get("email") else ""}
-          {" | <a href='" + personal.get("linkedin", "") + "' target='_blank'>" + personal.get("linkedin", "") + "</a>" if personal.get("linkedin") else ""}
-          {websites_html}
+          {location_line + "<br>" if location_line else ""}
+          {" | ".join(contact_parts)}
         </div>
 
         <!-- SUMMARY -->

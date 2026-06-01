@@ -58,6 +58,16 @@ function Dashboard() {
           <div className="resume-info">
             <h3>Resume #{resume.id}</h3>
             <p>Template: {resume.template}</p>
+            {/* {resume.source_type === "imported" ? (
+              <p>
+                Source: Imported
+                {typeof resume.parser_confidence === "number"
+                  ? ` (${Math.round(resume.parser_confidence * 100)}% parser confidence)`
+                  : ""}
+              </p>
+            ) : (
+              <p>Source: Manual</p>
+            )} */}
 
             <div className="resume-actions">
               <button

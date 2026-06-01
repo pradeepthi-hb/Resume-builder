@@ -457,6 +457,8 @@ def render(data):
 
             {section("Education", education_html)}
 
+            {section("Certifications &amp; Achievements", certifications_html)}
+
             {section("Languages", languages_html)}
 
         </div>
@@ -470,7 +472,7 @@ def render(data):
 
             {section("Projects", projects_html)}
 
-            {section("Certifications &amp; Achievements", certifications_html)}
+            
 
         </div>
 
